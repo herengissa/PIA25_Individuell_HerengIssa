@@ -1,0 +1,23 @@
+# Bytecode / cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Environment files
+.env
+
+# Databases / exports
+*.db
+*.sqlite3
+exports/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
