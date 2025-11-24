@@ -1,7 +1,5 @@
 # Electronics Shop – Individuell Examination
 
-Detta projekt uppfyller kraven för kursens individuella examination (Del 1 – G-nivå).
-
 ## Struktur
 
 ```
@@ -47,9 +45,4 @@ POSTGRES_PORT=5432
 ```
 
 Överstyr värdena vid behov (t.ex. via `.env` eller terminalen).
-
-## Vidare arbete
-
-- Lägg till fler queries i `queries.py` för Del 2 (VG).
-- Skapa `queries_advanced.sql`, `optimization.sql` och `REPORT.md` om du vill sikta på VG.
 

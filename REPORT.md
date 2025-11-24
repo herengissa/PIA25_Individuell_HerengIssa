@@ -1,82 +1,66 @@
-# Electronics Shop – Rapport (VG)
+# Electronics Shop - Rapport
 
-## 1. Databasdesign
+## Databasdesign
 
-### Översikt
+Jag har skapat en databas för en elektronikbutik med följande tabeller:
 
-Databasen modellerar en onlinebutik för elektronik. Följande tabeller och relationer finns:
+- `brands` - varumärken/tillverkare
+- `products` - produkter som tillhör varumärken
+- `customers` - kunder
+- `orders` - beställningar från kunder
+- `order_items` - produkter i varje beställning
+- `reviews` - recensioner från kunder på produkter
 
-- `brands` – tillverkare (1) ↔ `products` – produkter (M).
-- `customers` – kunder (1) ↔ `orders` – beställningar (M).
-- `orders` (1) ↔ `order_items` – beställningsrader (M) ↔ `products` (M).
-- `products` (1) ↔ `reviews` – kundrecensioner (M).
+Relationerna är:
+- Varje produkt tillhör ett varumärke
+- Varje beställning tillhör en kund
+- Varje beställning kan ha flera produkter (via order_items)
+- Varje produkt kan ha flera recensioner
 
-![ER-diagram](docs/er-diagram-electronics-shop.png "ER-diagram")
+### Designval
 
-> Diagrammet visar huvudtabellerna med primärnycklar (fetstil) och foreign keys (streckade linjer). `orders` och `order_items` bildar en klassisk faktatabell/dimension-struktur.
+Jag använde ON DELETE CASCADE på foreign keys så att när man raderar en kund eller produkt så försvinner även relaterade beställningar och recensioner. Det gör det enklare att hantera testdata.
 
-### Designbeslut
+Jag lade till CHECK constraints för att säkerställa att priser är positiva, att rating är mellan 1-5, och att kvantiteter inte kan vara negativa. Detta gör att databasen själv validerar data.
 
-- **ON DELETE CASCADE** används där en förälder saknar värde utan sina barn (t.ex. om en kund raderas ska även beställningar och orderrader försvinna). Det förenklar testdata och undviker orphan rows.
-- **CHECK constraints** på `price`, `unit_price`, `quantity`, `stock_quantity` och `rating` garanterar dataintegritet direkt i databasen.
-- **UNIQUE (product_id, customer_id)** i `reviews` säkerställer att en kund endast lämnar en recension per produkt.
-- **Index** på samtliga foreign keys ger snabba JOINs, vilket är viktigt för rapportering och kundvy.
+I reviews-tabellen gjorde jag en UNIQUE constraint på (product_id, customer_id) så att en kund bara kan lämna en recension per produkt.
 
-## 2. Avancerade SQL-queries
+Jag skapade index på alla foreign keys för att göra JOINs snabbare.
 
-Se `sql/queries_advanced.sql` för fullständiga definitioner. Kort sammanfattning:
+## Avancerade SQL-queries
 
-| Nr | Teknik | Syfte |
-|----|--------|-------|
-| 1  | Subquery | Produkter dyrare än genomsnittet |
-| 2  | Subquery + HAVING | Kunder med fler order än snittet |
-| 3  | Window (ROW_NUMBER) | Rangordning av produkter per varumärke |
-| 4  | Window (RANK) | Kunders spending-rank |
-| 5  | CASE | Kategorisering av prisnivå |
-| 6  | CASE + LEFT JOIN | Kundsegment baserat på orderantal |
+Jag skapade 6 avancerade queries i `queries_advanced.sql`:
 
-Queries 3–4 använder window functions (krav för VG). Queries 5–6 visar villkorlig logik med `CASE`.
+1. **Subquery** - Hittar produkter som kostar mer än genomsnittspriset
+2. **Subquery med HAVING** - Hittar kunder som har fler beställningar än genomsnittet
+3. **Window function (ROW_NUMBER)** - Rankar produkter per varumärke efter pris
+4. **Window function (RANK)** - Rankar kunder efter hur mycket de spenderat totalt
+5. **CASE** - Kategoriserar produkter i Budget (<1000), Medium (1000-5000) eller Premium (>5000)
+6. **CASE med LEFT JOIN** - Kategoriserar kunder som VIP (>3 beställningar), Regular (2-3) eller New (1)
 
-## 3. Index och optimering
+Window functions var lite svårare att förstå först men de är användbara för att ranka saker. CASE är bra för att kategorisera data.
 
-Detaljerad SQL finns i `sql/optimization.sql`. Sammanfattning:
+## Index och optimering
 
-| Query | Problem | Åtgärd | Effekt |
-|-------|---------|--------|--------|
-| `queries.sql` #5 (produkter per varumärke) | Sekventiellt scan på `brands` vid `LOWER(name)` | Index `idx_brands_name_lower` på `LOWER(name)` | Exekveringstid minskade från ~0.15 ms till ~0.05 ms (plans visar indexscan) |
-| `queries.sql` #9 (totalt spenderat) | Aggregering över `orders` utan selektivt index | Kompositindex `idx_orders_customer_status` | Planner bytte till indexscan + bitmap heap, färre reads |
+Jag identifierade två queries som kunde förbättras med index:
 
-### EXPLAIN ANALYZE (utdrag)
+**Query 1:** När man söker efter produkter per varumärke med LOWER(name) så gör databasen en sekventiell scan. Jag skapade ett index på LOWER(brands.name) vilket gör sökningen snabbare.
 
-```
-EXPLAIN ANALYZE SELECT ... WHERE LOWER(b.name) = LOWER('NovaTech');
--- Före: Seq Scan on brands  (actual time=0.026..0.027)
--- Efter: Index Scan using idx_brands_name_lower  (actual time=0.009..0.010)
-```
+**Query 2:** Queryn som hittar kunder som spenderat mest gör en JOIN och filtrerar på status. Jag skapade ett kompositindex på (customer_id, status) i orders-tabellen vilket hjälper både JOIN och WHERE.
 
-```
-EXPLAIN ANALYZE SELECT ... SUM(o.total_amount) ...
--- Före: HashAggregate + Seq Scan on orders (rows=10)
--- Efter: HashAggregate + Bitmap Heap Scan using idx_orders_customer_status (rows=8)
-```
+Jag använde EXPLAIN ANALYZE för att se skillnaden. Före index gjorde databasen seq scan, efter index använder den index scan vilket är snabbare. Även om datasetet är litet nu kommer detta vara viktigt när databasen växer.
 
-Även om datasetet är litet för examensuppgiften illustrerar detta hur index påverkar planerna och skalar när databasen växer.
+## Python-applikation
 
-## 4. Python-integration
+Jag byggde en Python-applikation med SQLAlchemy ORM. Det finns:
 
-`electronics_shop`-paketet innehåller:
+- `models.py` - ORM-modeller för alla tabeller
+- `database.py` - Hanterar databasanslutning
+- `queries.py` - Funktioner som hämtar produkter, filtrerar på varumärke, och visar kundbeställningar
+- `main.py` - Ett enkelt program som demonstrerar funktionerna
 
-- `database.py` – psycopg2-anslutning med miljövariabler.
-- `queries.py` – parameteriserade funktioner (listning av produkter, filtrering per varumärke, kundorder).
-- `main.py` – CLI som demonstrerar funktionerna.
+SQLAlchemy ORM gör det enklare att arbeta med databasen jämfört med raw SQL. Man kan använda Python-objekt istället för att skriva SQL direkt.
 
-Kodens struktur följer Del 1.3-kraven och kan byggas ut med fler funktioner (t.ex. för VG-queries).
+## Slutsats
 
-## 5. Vidare utveckling
-
-- Lägg till views/materialiserade views för vanliga rapporter.
-- Integrera Python-applikationen med Pandas för visualisering.
-- Implementera testfall (pytest) som validerar SQL-resultat mot förväntade summor.
-
-Med dessa komponenter uppfyller projektet både G- och VG-kraven i examinationen.
-
+Projektet innehåller en komplett databas med schema, testdata, queries (både grundläggande och avancerade), indexoptimering, och en Python-applikation. Allt fungerar som det ska och jag har lärt mig mycket om databaser, SQL och Python-integration.

@@ -1,20 +1,18 @@
--- Electronics Shop Database Schema
--- Kör i pgAdmin 4 (Query Tool). Skapa databasen electronics_db manuellt eller via första kommandot nedan.
+-- Schema för Electronics Shop databas
+-- Skapa databasen electronics_db först, sen kör detta script
 
 DROP DATABASE IF EXISTS electronics_db;
 CREATE DATABASE electronics_db;
 
--- Byt anslutning till electronics_db innan du kör resterande script.
--- I pgAdmin: högerklicka på electronics_db och välj "Query Tool", eller i psql kör: \connect electronics_db
+-- Byt till electronics_db innan du kör resten
+-- I pgAdmin: högerklicka på electronics_db -> Query Tool
+-- I psql: \connect electronics_db
 
--- Nedan antas att du kör mot electronics_db
-
--- Säkerställ ren miljö
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 SET search_path TO public;
 
--- Tabell: brands (tillverkare)
+-- Tabell för varumärken
 CREATE TABLE brands (
     id SERIAL PRIMARY KEY,
     name VARCHAR(120) NOT NULL UNIQUE,
@@ -24,7 +22,7 @@ CREATE TABLE brands (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabell: products
+-- Tabell för produkter
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -38,7 +36,7 @@ CREATE TABLE products (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabell: customers
+-- Tabell för kunder
 CREATE TABLE customers (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(80) NOT NULL,
@@ -50,7 +48,7 @@ CREATE TABLE customers (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabell: orders
+-- Tabell för beställningar
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -61,7 +59,7 @@ CREATE TABLE orders (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabell: order_items
+-- Tabell för orderrader
 CREATE TABLE order_items (
     id SERIAL PRIMARY KEY,
     order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -71,7 +69,7 @@ CREATE TABLE order_items (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabell: reviews
+-- Tabell för recensioner
 CREATE TABLE reviews (
     id SERIAL PRIMARY KEY,
     product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -83,7 +81,7 @@ CREATE TABLE reviews (
     UNIQUE (product_id, customer_id)
 );
 
--- Index på foreign keys
+-- Index för bättre prestanda
 CREATE INDEX idx_products_brand_id ON products(brand_id);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);

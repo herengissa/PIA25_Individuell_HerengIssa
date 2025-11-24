@@ -1,23 +1,16 @@
--- Electronics Shop - Avancerade SQL-queries (Del 2, VG)
--- Kör efter schema.sql och testdata.sql i databasen electronics_db
+-- Avancerade SQL queries (VG)
+-- Kör efter schema.sql och testdata.sql
 
 SET search_path TO public;
 
-/* 1. Subquery: Produkter vars pris är högre än genomsnittspriset */
-SELECT id,
-       name,
-       price,
-       category
+-- 1. Subquery: Produkter dyrare än genomsnittet
+SELECT id, name, price, category
 FROM products
-WHERE price > (
-    SELECT AVG(price) FROM products
-)
+WHERE price > (SELECT AVG(price) FROM products)
 ORDER BY price DESC;
 
-/* 2. Subquery: Kunder som har beställt fler order än genomsnittet */
-SELECT c.id,
-       c.first_name || ' ' || c.last_name AS customer_name,
-       COUNT(o.id) AS order_count
+-- 2. Subquery: Kunder med fler beställningar än genomsnittet
+SELECT c.id, c.first_name || ' ' || c.last_name AS customer_name, COUNT(o.id) AS order_count
 FROM customers c
 JOIN orders o ON o.customer_id = c.id
 GROUP BY c.id, customer_name
@@ -30,16 +23,14 @@ HAVING COUNT(o.id) > (
 )
 ORDER BY order_count DESC;
 
-/* 3. Window function: Ranka produkter per tillverkare baserat på pris */
-SELECT b.name AS brand_name,
-       p.name AS product_name,
-       p.price,
+-- 3. Window function: Ranka produkter per varumärke efter pris
+SELECT b.name AS brand_name, p.name AS product_name, p.price,
        ROW_NUMBER() OVER (PARTITION BY b.id ORDER BY p.price DESC) AS price_rank
 FROM products p
 JOIN brands b ON b.id = p.brand_id
 ORDER BY brand_name, price_rank;
 
-/* 4. Window function: Kunders totala spendering och deras rank */
+-- 4. Window function: Kunders spending rank
 SELECT c.first_name || ' ' || c.last_name AS customer_name,
        SUM(o.total_amount) AS total_spent,
        RANK() OVER (ORDER BY SUM(o.total_amount) DESC) AS spending_rank
@@ -49,9 +40,8 @@ WHERE o.status IN ('completed', 'pending')
 GROUP BY customer_name
 ORDER BY spending_rank;
 
-/* 5. CASE: Kategorisera produkter efter prisnivå */
-SELECT name,
-       price,
+-- 5. CASE: Kategorisera produkter efter pris
+SELECT name, price,
        CASE
            WHEN price < 1000 THEN 'Budget'
            WHEN price BETWEEN 1000 AND 5000 THEN 'Medium'
@@ -60,7 +50,7 @@ SELECT name,
 FROM products
 ORDER BY price;
 
-/* 6. CASE + aggregering: Kundstatus baserat på antal beställningar */
+-- 6. CASE: Kundstatus baserat på antal beställningar
 SELECT c.first_name || ' ' || c.last_name AS customer_name,
        COUNT(o.id) AS order_count,
        CASE
@@ -73,4 +63,3 @@ FROM customers c
 LEFT JOIN orders o ON o.customer_id = c.id
 GROUP BY customer_name
 ORDER BY order_count DESC, customer_name;
-

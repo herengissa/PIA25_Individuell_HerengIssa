@@ -1,23 +1,38 @@
 # Bytecode / cache
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 
 # Virtual environments
 .venv/
 env/
 venv/
+ENV/
 
 # Environment files
 .env
+.env.local
 
 # Databases / exports
 *.db
 *.sqlite3
 exports/
 
-# VS Code
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # macOS
 .DS_Store
+.AppleDouble
 
+# Backup files
+*.bak
+*.backup
+*~
+
+# ZIP files (om de inte ska committas)
+# *.zip
